@@ -16,6 +16,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"fmt"
 )
 
 //!-main
@@ -28,10 +29,12 @@ import (
 
 //!+main
 
-var palette = []color.Color{color.Black, color.RGBA{0,255,0,255}}//modified
+var palette = []color.Color{color.White, color.Black, color.RGBA{255, 0, 0, 255}, color.RGBA{0, 255, 0, 255}, color.RGBA{0, 0, 255, 255}}
 
 const (
-	backgroundIndex = 1 // next color in palette
+	backgroundColorIndex = 0 // first color in palette
+	firstLineColorIndex  = 1 // next color in palette
+	lastLineColorIndex   = 4
 )
 
 func main() {
@@ -73,13 +76,22 @@ func lissajous(out io.Writer) {
 			x := math.Sin(t)
 			y := math.Sin(t*freq + phase)
 			img.SetColorIndex(size+int(x*size+0.5), size+int(y*size+0.5),
-				backgroundIndex)
+				indexSelector(1, 4))
 		}
 		phase += 0.1
 		anim.Delay = append(anim.Delay, delay)
 		anim.Image = append(anim.Image, img)
 	}
-	gif.EncodeAll(out, &anim) // NOTE: ignoring encoding errors
+	err := gif.EncodeAll(out, &anim) // NOTE: ignoring encoding errors
+	if(err!= nil){
+		fmt.Println(err)
+	}
+}
+
+func indexSelector(start int, end int) uint8 {
+	uval := uint8(rand.Intn(end + 1 - start))
+	excess := uint8(start)
+	return uval + excess
 }
 
 //!-main
