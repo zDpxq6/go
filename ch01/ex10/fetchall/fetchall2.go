@@ -34,7 +34,7 @@ func measure(fp *os.File) float64 {
 		fmt.Println(<-ch) // receive from channel ch
 	}
 	result := time.Since(start).Seconds()
-	fmt.Printf("%.2fs elapsed\n", result)
+	fmt.Println(strings.Join(os.Args[1:], " "))
 	return result
 }
 
