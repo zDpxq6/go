@@ -14,6 +14,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -35,23 +36,31 @@ var palette = []color.Color{
 	color.White,
 }
 
-var counter uint8 = 1 // next color in palette
+var index uint8 = 1
 
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "?counter=") {
-			counter++
+		if !strings.Contains((*r).URL.Path, "colorIndex=") {
+			lissajous(w, index)
 		}
-		lissajous(w)
+		path := strings.Split((*r).URL.Path, "=")
+		if len(path) <= 0 {
+			lissajous(w, index)
+		}
+		index64, err := strconv.ParseUint(path[1], 10, 64)
+		if err != nil {
+			lissajous(w, index)
+		}
+		if index64 <= 0 || 7 < index64 {
+			lissajous(w, index)
+		}
+		index = uint8(index64)
+		lissajous(w, uint8(index))
 	})
-		http.HandleFunc("/counter=", func(w http.ResponseWriter, r *http.Request) {
-			counter++
-			lissajous(w)
-		})
 	log.Fatal(http.ListenAndServe("localhost:8001", nil))
 }
 
-func lissajous(out io.Writer) {
+func lissajous(out io.Writer, index uint8) {
 	const ( // number of complete x oscillator revolutions
 		cycles  = 5
 		res     = 0.001 // angular resolution
@@ -69,7 +78,7 @@ func lissajous(out io.Writer) {
 			x := math.Sin(t)
 			y := math.Sin(t*freq + phase)
 			img.SetColorIndex(size+int(x*size+0.5), size+int(y*size+0.5),
-				counter%7)
+				index)
 		}
 		phase += 0.1
 		anim.Delay = append(anim.Delay, delay)
