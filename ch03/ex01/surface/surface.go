@@ -1,10 +1,6 @@
-// Copyright © 2016 Alan A. A. Donovan & Brian W. Kernighan.
+// © 2016 zDpxq6
+// Code by Alan A. A. Donovan & Brian W. Kernighan/Adapted.
 // License: https://creativecommons.org/licenses/by-nc-sa/4.0/
-
-// See page 58.
-//!+
-
-// Surface computes an SVG rendering of a 3-D surface function.
 package main
 
 import (
@@ -29,50 +25,57 @@ func main() {
 		"width='%d' height='%d'>", width, height)
 	for i := 0; i < cells; i++ {
 		for j := 0; j < cells; j++ {
-			ax, ay, az := corner(i+1, j)
-			bx, by, bz := corner(i, j)
-			cx, cy, cz := corner(i, j+1)
-			dx, dy, dz := corner(i+1, j+1)
-			z := toColor((az + bz + cz + dz) / 4)
-			c := ""
-			if z < 0 {
-				v := 255 + z
-				c = fmt.Sprintf("#%x%xff", v, v)
-			} else if 0 < z {
-				v := 255 - z
-				c = fmt.Sprintf("#ff%x%x", v, v)
-			} else {
-				c = "#ffffff"
+			ax, ay, bx, by, cx, cy, dx, dy, ok := calculatePolygon(i, j)
+			if !ok {
+				continue
 			}
-			fmt.Printf("<polygon points='%g,%g %g,%g %g,%g %g,%g' fill='%s'/>\n",
-				ax, ay, bx, by, cx, cy, dx, dy, c)
+			fmt.Printf("<polygon points='%g,%g %g,%g %g,%g %g,%g'/>\n",
+				ax, ay, bx, by, cx, cy, dx, dy)
 		}
 	}
 	fmt.Println("</svg>")
 }
 
-func corner(i, j int) (float64, float64, float64) {
+func calculatePolygon(i, j int) (float64, float64, float64, float64, float64, float64, float64, float64, bool) {
+	ax, ay, ok := convertAxis(i+1, j)
+	if !ok {
+		return 0, 0, 0, 0, 0, 0, 0, 0, false
+	}
+	bx, by, ok := convertAxis(i, j)
+	if !ok {
+		return 0, 0, 0, 0, 0, 0, 0, 0, false
+	}
+	cx, cy, ok := convertAxis(i, j+1)
+	if !ok {
+		return 0, 0, 0, 0, 0, 0, 0, 0, false
+	}
+	dx, dy, ok := convertAxis(i+1, j+1)
+	if !ok {
+		return 0, 0, 0, 0, 0, 0, 0, 0, false
+	}
+	return ax, ay, bx, by, cx, cy, dx, dy, true
+}
+
+func convertAxis(i, j int) (float64, float64, bool) {
 	// Find point (x,y) at corner of cell (i,j).
 	x := xyrange * (float64(i)/cells - 0.5)
 	y := xyrange * (float64(j)/cells - 0.5)
 
 	// Compute surface height z.
-	z := f(x, y)
+	z, ok := calculateHeight(x, y)
+
+	if !ok {
+		return 0, 0, false
+	}
 
 	// Project (x,y,z) isometrically onto 2-D SVG canvas (sx,sy).
 	sx := width/2 + (x-y)*cos30*xyscale
 	sy := height/2 + (x+y)*sin30*xyscale - z*zscale
-	return sx, sy, z
+	return sx, sy, true
 }
 
-func toColor(z float64) int {
-	color := int(math.Floor(z * 255))
-	return color
+func calculateHeight(x, y float64) (float64, bool) {
+	r := math.Hypot(x, y)
+	z := math.Sin(r) / r
+	return z, !(math.IsNaN(z) || math.IsInf(z, 0))
 }
-
-func f(x, y float64) float64 {
-	r := math.Hypot(x, y) // distance from (0,0)
-	return math.Sin(r) / r
-}
-
-//!-
