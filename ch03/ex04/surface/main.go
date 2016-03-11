@@ -9,106 +9,94 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"strconv"
 )
-
-func main() {
-	http.HandleFunc("/", handler)
-	log.Fatal(http.ListenAndServe("localhost:8000", nil))
-}
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "image/svg+xml")
-	Draw(w)
-}
 
 const (
-	width, height = 600, 320            // canvas size in pixels
-	cells         = 100                 // number of grid cells
-	xyrange       = 30.0                // axis ranges (-xyrange..+xyrange)
-	xyscale       = width / 2 / xyrange // pixels per x or y unit
-	zscale        = height * 0.4        // pixels per z unit
-	angle         = math.Pi / 6         // angle of x, y axes (=30°)
+	cells   = 100         // number of grid cells
+	xyrange = 30.0        // axis ranges (-xyrange..+xyrange)
+	angle   = math.Pi / 6 // angle of x, y axes (=30°)
 )
+
+func xyscale(width int) float64 {
+	return float64(width / 2 / xyrange)
+}
+
+func zscale(height int) float64 {
+	return float64(height) * 0.4
+}
 
 var sin30, cos30 = math.Sin(angle), math.Cos(angle) // sin(30°), cos(30°)
 
-func Draw(w io.Writer) {
+func main() {
+	http.HandleFunc("/", handler)
+	http.ListenAndServe("localhost:8000", nil)
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	color := r.URL.Query().Get("color")
+	if len(color) == 0 {
+		color = "white"
+	}
+	height, err := toInt(r.URL.Query().Get("height"), 320)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "height should be integer", http.StatusBadRequest)
+		return
+	}
+	width, err := toInt(r.URL.Query().Get("width"), 600)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "width should be integer", http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "image/svg+xml")
+	svg(w, height, width, color)
+}
+
+func toInt(param string, defaultValue int) (int, error) {
+	if len(param) == 0 {
+		return defaultValue, nil
+	}
+	value, err := strconv.Atoi(param)
+	if err != nil {
+		return -1, err
+	}
+	return value, nil
+}
+
+func svg(w io.Writer, height, width int, color string) {
 	fmt.Fprintf(w, "<svg xmlns='http://www.w3.org/2000/svg' "+
 		"style='stroke: grey; fill: white; stroke-width: 0.7' "+
 		"width='%d' height='%d'>", width, height)
 	for i := 0; i < cells; i++ {
 		for j := 0; j < cells; j++ {
-			ax, ay, bx, by, cx, cy, dx, dy, color, ok := calculatePolygon(i, j)
-			if !ok {
-				continue
-			}
-			fmt.Fprintf(w, "<polygon points='%g,%g %g,%g %g,%g %g,%g' fill='%s'/>\n",
+			ax, ay := corner(width, height, i+1, j)
+			bx, by := corner(width, height, i, j)
+			cx, cy := corner(width, height, i, j+1)
+			dx, dy := corner(width, height, i+1, j+1)
+			fmt.Fprintf(w, "<polygon points='%g,%g %g,%g %g,%g %g,%g' style='fill:%s'/>\n",
 				ax, ay, bx, by, cx, cy, dx, dy, color)
 		}
 	}
-	fmt.Fprintf(w, "</svg>")
+	fmt.Fprintln(w, "</svg>")
 }
 
-func calculatePolygon(i, j int) (float64, float64, float64, float64, float64, float64, float64, float64, string, bool) {
-	tax, tay, taz, ok := convertTo3D(i+1, j)
-	if !ok {
-		return 0, 0, 0, 0, 0, 0, 0, 0, "#ff0000", false
-	}
-	tbx, tby, tbz, ok := convertTo3D(i, j)
-	if !ok {
-		return 0, 0, 0, 0, 0, 0, 0, 0, "#ff0000", false
-	}
-	tcx, tcy, tcz, ok := convertTo3D(i, j+1)
-	if !ok {
-		return 0, 0, 0, 0, 0, 0, 0, 0, "#ff0000", false
-	}
-	tdx, tdy, tdz, ok := convertTo3D(i+1, j+1)
-	if !ok {
-		return 0, 0, 0, 0, 0, 0, 0, 0, "#ff0000", false
-	}
-	ax, ay := convertTo2D(tax, tay, taz)
-	bx, by := convertTo2D(tbx, tby, tbz)
-	cx, cy := convertTo2D(tcx, tcy, tcz)
-	dx, dy := convertTo2D(tdx, tdy, tdz)
-	c := color((taz + tbz + tcz + tdz) / 4)
-	return ax, ay, bx, by, cx, cy, dx, dy, c, true
-}
-
-func convertTo3D(i, j int) (float64, float64, float64, bool) {
+func corner(width, height, i, j int) (float64, float64) {
 	// Find point (x,y) at corner of cell (i,j).
 	x := xyrange * (float64(i)/cells - 0.5)
 	y := xyrange * (float64(j)/cells - 0.5)
 
 	// Compute surface height z.
-	z, ok := calculateHeight(x, y)
+	z := f(x, y)
 
-	if !ok {
-		return 0, 0, 0, false
-	} else {
-		return x, y, z, true
-	}
-
-}
-
-func convertTo2D(x, y, z float64) (float64, float64) {
-	sx := width/2 + (x-y)*cos30*xyscale
-	sy := height/2 + (x+y)*sin30*xyscale - z*zscale
+	// Project (x,y,z) isometrically onto 2-D SVG canvas (sx,sy).
+	sx := float64(width)/2 + (x-y)*cos30*xyscale(width)
+	sy := float64(height)/2 + (x+y)*sin30*xyscale(width) - z*zscale(height)
 	return sx, sy
 }
 
-func color(z float64) string {
-	a := int(math.Floor(z * 255))
-	color := "#ffffff"
-	if a < 0 {
-		color = fmt.Sprintf("#%x%xff", 255+a, 255+a)
-	} else if 0 < a {
-		color = fmt.Sprintf("#ff%x%x", 255-a, 255-a)
-	}
-	return color
-}
-
-func calculateHeight(x, y float64) (float64, bool) {
-	r := math.Hypot(x, y)
-	z := math.Sin(r) / r
-	return z, !(math.IsNaN(z) || math.IsInf(z, 0))
+func f(x, y float64) float64 {
+	r := math.Hypot(x, y) // distance from (0,0)
+	return math.Sin(r) / r
 }
