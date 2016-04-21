@@ -16,34 +16,32 @@ import (
 
 func main() {
 	input, err := os.Open("./resource/Go.html")
+	defer input.Close()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "findlinks2: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 	doc, err := html.Parse(input)
-	defer input.Close()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "findlinks2: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
-	result := countElement(doc)
-	for k,v := range result {
-		fmt.Printf("%v:\t%v\n",k,v);
+	for elem, num := range visit(make(map[string]int), doc) {
+		fmt.Printf("%s\t%d\n", elem, num)
 	}
 }
 
-func countElement(n *html.Node) map[string]int {
-	m := make(map[string]int)
+func visit(elements map[string]int, n *html.Node) map[string]int {
+	if n == nil {
+		return elements
+	}
+
 	if n.Type == html.ElementNode {
-		m[n.Data]++
-		fmt.Printf("%s:%d\n", n.Data, m[n.Data])
+		elements[n.Data]++
 	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		fmt.Printf("    ")
-		childMap := countElement(c)
-		for k, _ := range childMap {
-			m[k]++
-		}
-	}
-	return m
+
+	elements = visit(elements, n.FirstChild)
+	elements = visit(elements, n.NextSibling)
+
+	return elements
 }

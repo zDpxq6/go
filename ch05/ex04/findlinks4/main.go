@@ -30,13 +30,31 @@ func main() {
 func visit(links []string, n *html.Node) []string {
 	if n.Type == html.ElementNode {
 		if n.Data == "img" {
-			for _, a := range n.Attr {
-				links = append(links, a.Val)
-			}
+			links = append(links, extractAttributeValue(n.Attr, "src"))
+		} else if n.Data == "link" {
+			links = append(links, extractAttributeValue(n.Attr, "src"))
+		} else if n.Data == "a" {
+			links = append(links, extractAttributeValue(n.Attr, "href"))
+		} else if n.Data == "script" {
+			links = append(links, extractAttributeValue(n.Attr, "href"))
 		}
 	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		links = visit(links, c)
+
+	if n.FirstChild != nil {
+		links = visit(links, n.FirstChild)
 	}
+	if n.NextSibling != nil {
+		links = visit(links, n.NextSibling)
+	}
+
 	return links
+}
+
+func extractAttributeValue(attributes []html.Attribute, name string) string {
+	for _, attr := range attributes {
+		if name == attr.Key {
+			return attr.Val
+		}
+	}
+	return ""
 }

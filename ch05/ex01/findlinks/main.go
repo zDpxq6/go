@@ -4,7 +4,7 @@
 // See page 122.
 
 // Findlinks1 prints the links in an HTML document read from standard input.
-package main
+package findlinks
 
 import (
 	"fmt"
