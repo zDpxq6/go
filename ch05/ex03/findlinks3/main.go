@@ -10,7 +10,7 @@ package main
 import (
 	"fmt"
 	"os"
-
+"strings"
 	"golang.org/x/net/html"
 )
 
@@ -26,24 +26,31 @@ func main() {
 		fmt.Fprintf(os.Stderr, "findlinks2: %v\n", err)
 		os.Exit(1)
 	}
-	result := countElement(doc)
-	for k,v := range result {
-		fmt.Printf("%v:\t%v\n",k,v);
+	for _, line := range visit(nil, doc) {
+		fmt.Println(line)
 	}
+
 }
 
-func countElement(n *html.Node) map[string]int {
-	m := make(map[string]int)
+func visit(text []string, n *html.Node) []string {
 	if n.Type == html.ElementNode {
-		m[n.Data]++
-		fmt.Printf("%s:%d\n", n.Data, m[n.Data])
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		fmt.Printf("    ")
-		childMap := countElement(c)
-		for k, _ := range childMap {
-			m[k]++
+		if n.Data == "script" || n.Data == "style" {
+			return text
 		}
 	}
-	return m
+
+	if n.Type == html.TextNode {
+		e := strings.TrimSpace(n.Data)
+		text = append(text, e)
+	}
+
+	if n.FirstChild != nil {
+		text = visit(text, n.FirstChild)
+	}
+
+	if n.NextSibling != nil {
+		text = visit(text, n.NextSibling)
+	}
+
+	return text
 }
