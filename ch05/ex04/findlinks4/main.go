@@ -29,6 +29,7 @@ func main() {
 // visit appends to links each link found in n and returns the result.
 func visit(links []string, n *html.Node) []string {
 	if n.Type == html.ElementNode {
+		//switch文のほうがよい
 		if n.Data == "img" {
 			links = append(links, extractAttributeValue(n.Attr, "src"))
 		} else if n.Data == "link" {
@@ -38,6 +39,7 @@ func visit(links []string, n *html.Node) []string {
 		} else if n.Data == "script" {
 			links = append(links, extractAttributeValue(n.Attr, "href"))
 		}
+		//defaultが必要
 	}
 
 	if n.FirstChild != nil {
