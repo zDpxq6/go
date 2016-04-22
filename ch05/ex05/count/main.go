@@ -36,6 +36,7 @@ func countWordsAndImages(n *html.Node) (words, images int) {
 	}
 
 	words = 0
+	//たりない. scannerでscanする.
 	if n.Type == html.TextNode {
 		words++
 	}
