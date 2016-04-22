@@ -18,7 +18,7 @@ const (
 )
 
 func main() {
-	target := "$foo"
+	target := "$foo"//"$"は単なるセパレータ$foo$barがあれば, f("foo"), f("bar")となるようにする.
 	f := func(s string) string {
 		return s
 	}
