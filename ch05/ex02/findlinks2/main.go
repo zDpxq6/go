@@ -40,8 +40,12 @@ func visit(elements map[string]int, n *html.Node) map[string]int {
 		elements[n.Data]++
 	}
 
-	elements = visit(elements, n.FirstChild)
-	elements = visit(elements, n.NextSibling)
+	if n.FirstChild != nil {
+		elements = visit(elements, n.FirstChild)//n.FirstChildのnilチェックがない	
+	}
+	if n.NextSibling != nil {
+		elements = visit(elements, n.NextSibling)//n.NextSiblingのnilチェックがない
+	}
 
 	return elements
 }
