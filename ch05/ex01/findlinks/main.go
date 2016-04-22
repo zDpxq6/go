@@ -38,6 +38,6 @@ func visit(n *html.Node) {
 		}
 	}
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		visit(c)
+		visit(c)//間違い. for文を使ってはいけない
 	}
 }
