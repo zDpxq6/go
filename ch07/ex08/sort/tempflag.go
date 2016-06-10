@@ -33,11 +33,12 @@ type memorizingSort struct {
 func (x memorizingSort) Len() int      { return len(x.t) }
 func (x memorizingSort) Swap(i, j int) { x.t[i], x.t[j] = x.t[j], x.t[i] }
 func (x memorizingSort) Less(i, j int) bool {
-	result := false
 	for _, less := range x.memories {
-		result = less(x.t[i], x.t[j])
+		if less(x.t[i], x.t[j]){
+			return ture;
+		}
 	}
-	return result
+	return false
 }
 
 var m = []func(x, y *Raw) bool{
